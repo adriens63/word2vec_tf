@@ -1,10 +1,8 @@
 import tensorflow as tf
 import numpy as np
 
-from word2vec_tf.word2vec.archs.constants import VOCAB_SIZE
-
 try:
-    from constants import CBOW_N_WORDS, SKIPGRAM_N_WORDS, MIN_WORD_FREQUENCY, MAX_SEQ_LENGTH, BATCH_SIZE
+    from constants import CBOW_N_WORDS, SKIPGRAM_N_WORDS, MIN_WORD_FREQUENCY, MAX_SEQ_LENGTH, BATCH_SIZE, VOCAB_SIZE
 except ImportError:
     raise ImportError('constants' + ' non importé')
 
@@ -184,7 +182,7 @@ class DataLoader:
         
         return combined_strings
     
-    def list_of_sentences_without_stopwords(self, n_strings: int) -> List[List[str]]:
+    def list_of_sentences_without_stopwords(self) -> List[List[str]]:
         """[summary]
 
         Args:
@@ -196,6 +194,13 @@ class DataLoader:
         
         return list_of_sentences_split
     
+    def list_of_sentences_without_stopwords_not_split(self) -> List[List[str]]:
+        """[summary]
+
+        Args:
+            n_strings ([type]): [description]
+        """                
+        return [' '.join([w for w in s]) for s in self.list_of_sentences_without_stopwords()]
 
 
 
@@ -218,11 +223,14 @@ def pipeline_cbow(batch):
     
     for tokenized_sequence in batch:
         
+        if len(tokenized_sequence) < SKIPGRAM_N_WORDS * 2 + 1: # we do not take this sentence into account
+            continue
+        
         if MAX_SEQ_LENGTH:
             tokenized_sequence = tokenized_sequence[:MAX_SEQ_LENGTH]
         
         for idx in range(len(tokenized_sequence))[CBOW_N_WORDS: -CBOW_N_WORDS]:
-            window = tokenized_sequence[idx - CBOW_N_WORDS: idx + CBOW_N_WORDS]
+            window = tokenized_sequence[idx - CBOW_N_WORDS: idx + CBOW_N_WORDS + 1]
             y = window.pop(CBOW_N_WORDS)
             x = window # once the pop is done
             context.append(x)
@@ -254,11 +262,14 @@ def pipeline_skipgram(batch):
     
     for tokenized_sequence in batch:
         
+        if len(tokenized_sequence) < SKIPGRAM_N_WORDS * 2 + 1: # we do not take this sentence into account
+            continue
+        
         if MAX_SEQ_LENGTH:
             tokenized_sequence = tokenized_sequence[:MAX_SEQ_LENGTH]
         
         for idx in range(len(tokenized_sequence))[CBOW_N_WORDS: -CBOW_N_WORDS]:
-            window = tokenized_sequence[idx - CBOW_N_WORDS: idx + CBOW_N_WORDS]
+            window = tokenized_sequence[idx - CBOW_N_WORDS: idx + CBOW_N_WORDS + 1]
             x = window.pop(CBOW_N_WORDS)
             y_ = window # once the pop is done
             
@@ -287,7 +298,7 @@ class Word2Int:
             ds ([type]): [description]
         """
         
-        self.vectorize_layer.adapt(ds.prefetch(AUTOTUNE).cache())
+        self.vectorize_layer.adapt(ds)
         self.inverse_vocab = self.vectorize_layer.get_vocabulary() # l'indice est l'entier associé, le mot le plus fréquent etant en premier
         
     def vectorize(self, ds):
@@ -295,6 +306,7 @@ class Word2Int:
         if not hasattr(self, 'inverse_vocab'):
             self.adapt(ds)
         
-        text_vector_ds = ds.map(self.vectorize_layer)
+        self.text_vector_ds = ds.map(self.vectorize_layer)
         
-        return text_vector_ds
+        return self.text_vector_ds
+    
