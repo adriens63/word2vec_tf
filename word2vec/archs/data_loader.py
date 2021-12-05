@@ -1,6 +1,8 @@
 import tensorflow as tf
 import numpy as np
 
+from word2vec_tf.word2vec.archs.constants import VOCAB_SIZE
+
 try:
     from constants import CBOW_N_WORDS, SKIPGRAM_N_WORDS, MIN_WORD_FREQUENCY, MAX_SEQ_LENGTH, BATCH_SIZE
 except ImportError:
@@ -193,3 +195,106 @@ class DataLoader:
         list_of_sentences_split = [[w for w in s.split() if w not in STOPWORDS] for s in list_of_sentences]
         
         return list_of_sentences_split
+    
+
+
+
+def pipeline_cbow(batch):
+    """
+    return (context, target)
+    where context is made of N = CBOW_N_WORDS past words and N = CBOW_N_WORDS future words
+    target is the word in the middle.
+    
+    Long paragraphs will be troncated into paragraphs of length MAX_SEQ_LENGTH. 
+
+    Each element in `context` is N=CBOW_N_WORDS*2 context words.
+    Each element in `target` is a middle word.
+    
+    Args:
+        b ([type]): b is a batch (list) of tokenized sequences.
+    """
+    
+    context, target = [], []
+    
+    for tokenized_sequence in batch:
+        
+        if MAX_SEQ_LENGTH:
+            tokenized_sequence = tokenized_sequence[:MAX_SEQ_LENGTH]
+        
+        for idx in range(len(tokenized_sequence))[CBOW_N_WORDS: -CBOW_N_WORDS]:
+            window = tokenized_sequence[idx - CBOW_N_WORDS: idx + CBOW_N_WORDS]
+            y = window.pop(CBOW_N_WORDS)
+            x = window # once the pop is done
+            context.append(x)
+            target.append(y)
+    
+    return context, target
+
+
+
+
+def pipeline_skipgram(batch):
+    """
+    return (context, target)
+    where context is made of N = CBOW_N_WORDS past words and N = CBOW_N_WORDS future words
+    target is the word in the middle.
+    
+    Long paragraphs will be troncated into paragraphs of length MAX_SEQ_LENGTH. 
+
+    Each element in `context` is ONE context word (each target word is paired several times to each context word in the third 'for').
+    Each element in `target` is a middle word.
+    
+    /!\ the 'target' will be fed as the input of the skip-gram word2vec, and the model will try try to predict the 'context' 
+    
+    Args:
+        b ([type]): b is a batch (list) of tokenized sequences.
+    """
+    
+    context, target = [], []
+    
+    for tokenized_sequence in batch:
+        
+        if MAX_SEQ_LENGTH:
+            tokenized_sequence = tokenized_sequence[:MAX_SEQ_LENGTH]
+        
+        for idx in range(len(tokenized_sequence))[CBOW_N_WORDS: -CBOW_N_WORDS]:
+            window = tokenized_sequence[idx - CBOW_N_WORDS: idx + CBOW_N_WORDS]
+            x = window.pop(CBOW_N_WORDS)
+            y_ = window # once the pop is done
+            
+            for y in y_:
+                context.append(y)
+                target.append(x)
+    
+    return context, target
+
+
+
+
+class Word2Int:
+    
+    def __init__(self) -> None:
+        
+        self.vectorize_layer = tf.keras.layers.experimental.preprocessing.TextVectorization(standardize = None,
+                                                                              max_tokens = VOCAB_SIZE,
+                                                                              output_mode = 'int'
+                                                                              )
+    
+    def adapt(self, ds):
+        """Takes a batched ds
+
+        Args:
+            ds ([type]): [description]
+        """
+        
+        self.vectorize_layer.adapt(ds.prefetch(AUTOTUNE).cache())
+        self.inverse_vocab = self.vectorize_layer.get_vocabulary() # l'indice est l'entier associé, le mot le plus fréquent etant en premier
+        
+    def vectorize(self, ds):
+        
+        if not hasattr(self, 'inverse_vocab'):
+            self.adapt(ds)
+        
+        text_vector_ds = ds.map(self.vectorize_layer)
+        
+        return text_vector_ds
