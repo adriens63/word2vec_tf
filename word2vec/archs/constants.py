@@ -10,3 +10,7 @@ VOCAB_SIZE = 4096
 BATCH_SIZE = 32
 
 LANGUAGE = 'english'
+
+BUFFER_SIZE = 8192
+
+PATH = '/coding_linux20/programming/datasets/wikitext-2-raw' + '/wiki.train.raw'
