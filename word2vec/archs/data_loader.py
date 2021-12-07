@@ -1,8 +1,7 @@
 import tensorflow as tf
-import numpy as np
 
 try:
-    from constants import CBOW_N_WORDS, SKIPGRAM_N_WORDS, MIN_WORD_FREQUENCY, MAX_SEQ_LENGTH, BATCH_SIZE, VOCAB_SIZE
+    from word2vec.archs.constants import CBOW_N_WORDS, SKIPGRAM_N_WORDS, MIN_WORD_FREQUENCY, MAX_SEQ_LENGTH, BATCH_SIZE, VOCAB_SIZE, BUFFER_SIZE
 except ImportError:
     raise ImportError('constants' + ' non importé')
 
@@ -11,8 +10,10 @@ from nltk.corpus import stopwords
     
 from typing import List, Any
 
+import tqdm
+
 try:
-    import constants as c
+    import word2vec.archs.constants as c
 except ImportError:
     c = None
     raise ImportError('constants' + ' not imported')
@@ -221,7 +222,7 @@ def pipeline_cbow(batch):
     
     context, target = [], []
     
-    for tokenized_sequence in batch:
+    for tokenized_sequence in tqdm.tqdm(batch):
         
         if len(tokenized_sequence) < SKIPGRAM_N_WORDS * 2 + 1: # we do not take this sentence into account
             continue
@@ -260,7 +261,7 @@ def pipeline_skipgram(batch):
     
     context, target = [], []
     
-    for tokenized_sequence in batch:
+    for tokenized_sequence in tqdm.tqdm(batch):
         
         if len(tokenized_sequence) < SKIPGRAM_N_WORDS * 2 + 1: # we do not take this sentence into account
             continue
@@ -309,4 +310,83 @@ class Word2Int:
         self.text_vector_ds = ds.map(self.vectorize_layer)
         
         return self.text_vector_ds
+
+
+
+
+class GetDataset:
     
+    def __init__(self, name_model, path: str) -> None:
+        
+        assert(name_model in ['skip_gram', 'cbow'])
+        self.name_model = name_model
+        
+        self.w2i = Word2Int()
+        self.dl = DataLoader(path)
+        self.pipeline_fn = pipeline_skipgram if self.name_model == 'skip_gram' else pipeline_cbow
+
+    
+    def get_ds_ready(self):
+        
+        return self.get_ds_ready_skip_gram() if self.name_model == 'skip_gram' else self.get_ds_ready_cbow()
+    
+    
+    def get_ds_ready_skip_gram(self) -> tf.data.Dataset:
+        
+        self.dl.prepare()
+        
+        list_without_stopwords = self.dl.list_of_sentences_without_stopwords_not_split()
+        text_ds = tf.data.Dataset.from_tensor_slices(list_without_stopwords)
+        
+        self.w2i.adapt(text_ds)
+        self.vocab = self.w2i.inverse_vocab
+        text_vector_ds = self.w2i.vectorize(text_ds)
+        
+        sequences_in_int = list(text_vector_ds.as_numpy_iterator())
+        sequences = [list(seq) for seq in sequences_in_int] # convert the numpy arrays in lists
+        
+        
+        contexts, targets = self.pipeline_fn(sequences)
+        
+        def gen():
+            yield targets.pop(), contexts.pop()
+            
+        final_ds = tf.data.Dataset.from_generator(gen, 
+                                                    output_signature=(
+                                                    tf.TensorSpec(shape=(), dtype=tf.int64),
+                                                    tf.TensorSpec(shape=(), dtype=tf.int64)))
+        
+        x = next(iter(final_ds))
+        print(x)
+        
+        return final_ds#.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder = True).cache().prefetch(buffer_size = AUTOTUNE)
+        
+    
+    def get_ds_ready_cbow(self) -> tf.data.Dataset:
+        
+        self.dl.prepare()
+        
+        list_without_stopwords = self.dl.list_of_sentences_without_stopwords_not_split()
+        text_ds = tf.data.Dataset.from_tensor_slices(list_without_stopwords)
+        
+        self.w2i.adapt(text_ds)
+        self.vocab = self.w2i.inverse_vocab
+        text_vector_ds = self.w2i.vectorize(text_ds)
+        
+        sequences_in_int = list(text_vector_ds.as_numpy_iterator())
+        sequences = [list(seq) for seq in sequences_in_int] # convert the numpy arrays in lists
+        
+        
+        contexts, targets = self.pipeline_fn(sequences)
+        
+        def gen():
+            yield contexts.pop(), targets.pop() # here it i the other way around, compared to the previous method
+            
+        final_ds = tf.data.Dataset.from_generator(gen, 
+                                                    output_signature=(
+                                                    tf.TensorSpec(shape=(), dtype=tf.int64),
+                                                    tf.TensorSpec(shape=(), dtype=tf.int64)))
+        
+        print(final_ds)
+        
+        return final_ds.batch(BATCH_SIZE, drop_remainder = True).cache().prefetch(buffer_size = AUTOTUNE)
