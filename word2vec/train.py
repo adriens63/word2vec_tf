@@ -16,7 +16,7 @@ name = 'w2v_1'
 w2v = w.Word2VecSkipGram()
 
 w2v.compile(optimizer='adam',
-                 loss=sparse_categorical_crossentropy,
+                 loss='sparse_categorical_crossentropy',
                  metrics=['accuracy'])
 
 with tf.device("/device:CPU:0"):
@@ -25,4 +25,4 @@ with tf.device("/device:CPU:0"):
                 #callbacks = [tensorboard],
                 verbose = 1)
 
-w2v.save_weights(name + '.h5')
+w2v.save_weights('./weights/' + name + '.h5')

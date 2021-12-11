@@ -1,3 +1,6 @@
+import sys
+sys.path.insert(0, "../")
+
 import tensorflow as tf
 
 try:
@@ -310,6 +313,15 @@ class Word2Int:
         self.text_vector_ds = ds.map(self.vectorize_layer)
         
         return self.text_vector_ds
+    
+    def get_vocab(self):
+        if not hasattr(self, 'inverse_vocab'):
+            pass
+        
+        else:
+            return self.inverse_vocab
+        
+        
 
 
 
@@ -350,14 +362,15 @@ class GetDataset:
         
         def gen():
             yield targets.pop(), contexts.pop()
-            
-        final_ds = tf.data.Dataset.from_generator(gen, 
-                                                    output_signature=(
-                                                    tf.TensorSpec(shape=(), dtype=tf.int64),
-                                                    tf.TensorSpec(shape=(), dtype=tf.int64)))
         
-        x = next(iter(final_ds))
-        print(x)
+        #TODO : Remettre ca    
+        # final_ds = tf.data.Dataset.from_generator(gen, 
+        #                                             output_signature=(
+        #                                             tf.TensorSpec(shape=(), dtype=tf.int64),
+        #                                             tf.TensorSpec(shape=(), dtype=tf.int64)))
+        
+        final_ds = tf.data.Dataset.from_tensor_slices((targets, contexts))
+
         
         return final_ds#.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder = True).cache().prefetch(buffer_size = AUTOTUNE)
         
@@ -390,3 +403,10 @@ class GetDataset:
         print(final_ds)
         
         return final_ds.batch(BATCH_SIZE, drop_remainder = True).cache().prefetch(buffer_size = AUTOTUNE)
+    
+    def get_vocab(self):
+        
+        if not hasattr(self.w2i, 'inverse_vocab'):
+            raise ValueError('w2i not adapted to a dataset')
+        
+        return self.w2i.inverse_vocab
