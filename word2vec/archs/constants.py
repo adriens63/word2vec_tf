@@ -14,7 +14,8 @@ LANGUAGE = 'english'
 BUFFER_SIZE = 8192
 
 PATH = '/coding_linux20/programming/datasets/wikitext-2-raw' + '/wiki.train.raw'
-LOG_PATH = '../'
+LOG_PATH = './logs' # path depuis word2vec_tf, car on lance avec 'python -m word2vec.train'
+WEIGHTS_PATH = './word2vec/weights/'
 
 NUM_EPOCHS = 5
 LR_INI = 0.025

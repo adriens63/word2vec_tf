@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow.python.keras.backend import sparse_categorical_crossentropy
 
 import word2vec.utils.trainer as t
 import word2vec.models.word2vec_models as w
@@ -32,9 +31,15 @@ w2v.compile(optimizer = optimizer,
 
 with tf.device("/device:GPU:0"):
         w2v.fit(ds,
-                epochs = 30,
+                epochs = c.NUM_EPOCHS,
                 #callbacks = [tensorboard],
-                callbacks = [lr_scheduler]
+                callbacks = [lr_scheduler],
                 verbose = 1)
 
-w2v.save_weights('./weights/' + name + '.h5')
+w2v.save_weights(c.WEIGHTS_PATH + name + '.h5')
+
+t.log_metadata(log_dir = c.LOG_PATH, inverse_vocab = inverse_vocab)
+
+t.log_embeddings(log_dir = c.LOG_PATH, model = w2v)
+
+t.config_projector(log_dir = c.LOG_PATH)
