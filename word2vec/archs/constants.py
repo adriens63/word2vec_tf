@@ -7,10 +7,15 @@ MAX_SEQ_LENGTH = 256 # à definir à zéro si on ne veut pas de troncature des p
 EMBEDDING_DIM = 256
 
 VOCAB_SIZE = 4096
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 
 LANGUAGE = 'english'
 
 BUFFER_SIZE = 8192
 
 PATH = '/coding_linux20/programming/datasets/wikitext-2-raw' + '/wiki.train.raw'
+LOG_PATH = '../'
+
+NUM_EPOCHS = 5
+LR_INI = 0.025
+PENTE = - LR_INI / NUM_EPOCHS

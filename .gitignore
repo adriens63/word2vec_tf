@@ -1,4 +1,7 @@
-*.ipynb
+# Added manually
+draft_2.ipynb
+draft.ipynb
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
