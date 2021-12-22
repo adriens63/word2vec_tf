@@ -5,6 +5,63 @@ from tensorboard.plugins import projector
 import os
 
 from ..archs.constants import PENTE, LR_INI, VOCAB_SIZE
+import word2vec.utils.trainer as t
+import word2vec.models.word2vec_models as w
+import word2vec.archs.data_loader as dl
+import word2vec.archs.constants as c
+
+
+
+
+
+#********************* trainer *******************
+
+class Trainer:
+    
+    def __init__(
+        self,
+        device,
+        model,
+        epochs,
+        loss_fn,
+        optimizer,
+        lr_scheduler,
+        train_data_loader,
+        train_steps,
+        val_data_loader,
+        val_steps,
+        checkpoint_frequency,
+        model_dir,
+        model_name
+        ):
+        
+        self.device = device
+        self.model = model
+        self.epochs = epochs
+        self.loss_fn = loss_fn
+        self.optimizer = optimizer
+        self.lr_scheduler = lr_scheduler
+        self.train_data_loader = train_data_loader
+        self.train_steps = train_steps
+        self.val_data_loader = val_data_loader
+        self.val_steps = val_steps
+        self.checkpoint_frequency = checkpoint_frequency
+        self.model_dir = model_dir
+        self.model_name = model_name
+        
+        self.loss = {'train' : [], 'val' : []}
+    
+    
+    def launch_training(self):
+        
+        model.fit()
+    
+    
+
+
+
+
+
 
 
 
