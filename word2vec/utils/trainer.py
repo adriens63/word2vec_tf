@@ -14,6 +14,14 @@ import word2vec.archs.constants as c
 
 
 
+# ******************** global constants ******************
+
+AUTOTUNE = tf.data.AUTOTUNE
+
+
+
+
+
 #********************* trainer *******************
 
 class Trainer:
@@ -23,6 +31,8 @@ class Trainer:
         device,
         model,
         epochs,
+        batch_size,
+        buffer_size,
         loss_fn,
         optimizer,
         lr_scheduler,
@@ -31,13 +41,16 @@ class Trainer:
         val_data_loader,
         val_steps,
         checkpoint_frequency,
+        model_name,
         model_dir,
-        model_name
+        log_dir
         ):
         
         self.device = device
         self.model = model
         self.epochs = epochs
+        self.batch_size = batch_size
+        self.buffer_size = buffer_size
         self.loss_fn = loss_fn
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
@@ -46,22 +59,54 @@ class Trainer:
         self.val_data_loader = val_data_loader
         self.val_steps = val_steps
         self.checkpoint_frequency = checkpoint_frequency
-        self.model_dir = model_dir
         self.model_name = model_name
+        self.model_dir = model_dir
+        self.log_dir = log_dir
         
         self.loss = {'train' : [], 'val' : []}
     
     
     def launch_training(self):
         
-        model.fit()
+        with tf.device(self.device):
+            self.model.fit(self.train_ds,
+                    epochs = self.epochs,
+                    #callbacks = [tensorboard],
+                    callbacks = [self.lr_scheduler],
+                    verbose = 1)
+        
+    
+    def get_ds(self):
+        
+        self.train_ds = self.train_data_loader.get_ds_ready()
+        self.train_ds = self.train_ds.shuffle(self.buffer_size).batch(self.batch_size, drop_remainder = True).cache().prefetch(buffer_size = AUTOTUNE)
+        self.inverse_vocab = self.train_data_loader.get_vocab()
     
     
+    def save_weights(self):
+        
+        self.model.save_weights(self.model_dir + self.model_name + '.h5')
 
 
+    def log_metadata(self):
+        
+        if not os.path.exists(self.log_dir):
+            os.makedirs(self.log_dir)
 
+        with open(os.path.join(self.log_dir, 'metadata.tsv'), 'w') as f:
+            for word in self.inverse_vocab:
+                f.write('{}\n'.format(word))
+            for unknown in range(1, VOCAB_SIZE - len(self.inverse_vocab)):
+                f.write('unknown #{}\n'.format(unknown))
 
-
+    
+    def log_embeddings(self):
+        
+        weights = tf.Variable(self.model.layers[0].get_weights()[0][1:])
+        # Create a checkpoint from embedding, the filename and key are the
+        # name of the tensor.
+        checkpoint = tf.train.Checkpoint(embedding = weights)
+        checkpoint.save(os.path.join(self.log_dir, 'embedding.ckpt'))
 
 
 
@@ -89,7 +134,7 @@ def log_embeddings(log_dir, model):
     weights = tf.Variable(model.layers[0].get_weights()[0][1:])
     # Create a checkpoint from embedding, the filename and key are the
     # name of the tensor.
-    checkpoint = tf.train.Checkpoint(embedding=weights)
+    checkpoint = tf.train.Checkpoint(embedding = weights)
     checkpoint.save(os.path.join(log_dir, 'embedding.ckpt'))
 
 
