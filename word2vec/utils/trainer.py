@@ -5,10 +5,6 @@ from tensorboard.plugins import projector
 import os
 
 from ..archs.constants import PENTE, LR_INI, VOCAB_SIZE
-import word2vec.utils.trainer as t
-import word2vec.models.word2vec_models as w
-import word2vec.archs.data_loader as dl
-import word2vec.archs.constants as c
 
 
 
@@ -109,6 +105,14 @@ class Trainer:
         checkpoint.save(os.path.join(self.log_dir, 'embedding.ckpt'))
 
 
+    def config_projector(self):
+    
+        config = projector.ProjectorConfig()
+        embedding = config.embeddings.add()
+
+        embedding.tensor_name = 'embedding/.att/value'
+        embedding.metadata_path = 'metadata.tsv'
+        projector.visualize_embeddings(self.log_dir, config)
 
 
 
