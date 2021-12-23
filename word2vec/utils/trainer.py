@@ -60,23 +60,44 @@ class Trainer:
         self.log_dir = log_dir
         
         self.loss = {'train' : [], 'val' : []}
+        #TODO add callbacks with checkpoint_frequency
+        #TODO add val_steps, train_steps into code
+    
+    
+    def compile(self):
+        self.model.compile(optimizer = self.optimizer,
+                            loss = self.loss_fn,
+                            metrics = ['accuracy'],
+                            )
     
     
     def launch_training(self):
         
         with tf.device(self.device):
             self.model.fit(self.train_ds,
-                    epochs = self.epochs,
-                    #callbacks = [tensorboard],
-                    callbacks = [self.lr_scheduler],
-                    verbose = 1)
-        
+                            epochs = self.epochs,
+                            #callbacks = [tensorboard],
+                            callbacks = [self.lr_scheduler],
+                            validation_data = self.val_ds
+                            verbose = 1,
+                            shuffle = False # the data is already shuffled when loaded
+                            )
+                
     
     def get_ds(self):
         
         self.train_ds = self.train_data_loader.get_ds_ready()
         self.train_ds = self.train_ds.shuffle(self.buffer_size).batch(self.batch_size, drop_remainder = True).cache().prefetch(buffer_size = AUTOTUNE)
         self.inverse_vocab = self.train_data_loader.get_vocab()
+        
+        if self.val_data_loader:
+            
+            self.val_ds = self.val_data_loader.get_ds_ready()
+            self.val_ds = self.val_ds.shuffle(self.buffer_size).batch(self.batch_size, drop_remainder = True).cache().prefetch(buffer_size = AUTOTUNE)
+
+        else:
+            
+            self.val_ds = None
     
     
     def save_weights(self):

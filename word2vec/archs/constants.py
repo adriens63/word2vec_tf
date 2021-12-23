@@ -1,8 +1,8 @@
 CBOW_N_WORDS = 3
-SKIPGRAM_N_WORDS = 3 # contexte = 3 mots avant, 3 mots après le mot target
+SKIPGRAM_N_WORDS = 3 # context = 3 words before, 3 words after the target word
 
 MIN_WORD_FREQUENCY = 30
-MAX_SEQ_LENGTH = 256 # à definir à zéro si on ne veut pas de troncature des paragraphes
+MAX_SEQ_LENGTH = 256 # define it to 0 for no truncature
 
 EMBEDDING_DIM = 256
 
@@ -13,8 +13,9 @@ LANGUAGE = 'english'
 
 BUFFER_SIZE = 8192
 
+#/!\ only useful for train_old, otherwise modify it in the config.yaml file 
 PATH = '/coding_linux20/programming/datasets/wikitext-2-raw' + '/wiki.train.raw'
-LOG_PATH = './logs' # path depuis word2vec_tf, car on lance avec 'python -m word2vec.train'
+LOG_PATH = './logs' # path from word2vec_tf, because we launch with 'python -m word2vec.train'
 WEIGHTS_PATH = './word2vec/weights/'
 
 NUM_EPOCHS = 5

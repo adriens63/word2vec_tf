@@ -1,1 +1,16 @@
-model_name: w2v_2
+model_name: w2v_skip_gram
+
+type_model: skip_gram
+
+optimizer: adam
+loss_fn: sparse_categorical_crossentropy
+learning_rate: 0.025
+lr_scheduler: linear_decrease
+epochs: 5
+pente: - 0.005
+train_steps: 
+val_steps: 
+
+checkpoint_frequency: 
+
+device: /device:GPU:0
