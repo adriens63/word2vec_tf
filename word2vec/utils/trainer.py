@@ -38,7 +38,7 @@ class Trainer:
         val_steps,
         checkpoint_frequency,
         model_name,
-        model_dir,
+        weights_path,
         log_dir
         ):
         
@@ -56,32 +56,44 @@ class Trainer:
         self.val_steps = val_steps
         self.checkpoint_frequency = checkpoint_frequency
         self.model_name = model_name
-        self.model_dir = model_dir
+        self.weights_path = weights_path
         self.log_dir = log_dir
         
-        self.loss = {'train' : [], 'val' : []}
-        #TODO add callbacks with checkpoint_frequency
-        #TODO add val_steps, train_steps into code
-    
-    
-    def compile(self):
-        self.model.compile(optimizer = self.optimizer,
-                            loss = self.loss_fn,
-                            metrics = ['accuracy'],
-                            )
+        self.compiled = False
+        #TODO add callbacks with checkpoint_frequency, loss, weight visualisation
+        #TODO add val_steps, train_steps, into code
     
     
     def launch_training(self):
+        
+        if not hasattr(self, 'train_ds'):
+            
+            self.get_ds()
+            
+        if not self.compiled:
+            
+            self.compile()
+        
         
         with tf.device(self.device):
             self.model.fit(self.train_ds,
                             epochs = self.epochs,
                             #callbacks = [tensorboard],
                             callbacks = [self.lr_scheduler],
-                            validation_data = self.val_ds
+                            validation_data = self.val_ds,
                             verbose = 1,
                             shuffle = False # the data is already shuffled when loaded
                             )
+    
+    
+    def compile(self):
+        
+        self.model.compile(optimizer = self.optimizer,
+                            loss = self.loss_fn,
+                            metrics = ['accuracy'],
+                            )
+        
+        self.compiled = True
                 
     
     def get_ds(self):
@@ -102,7 +114,7 @@ class Trainer:
     
     def save_weights(self):
         
-        self.model.save_weights(self.model_dir + self.model_name + '.h5')
+        self.model.save_weights(self.weights_path + self.model_name + '.h5')
 
 
     def log_metadata(self):

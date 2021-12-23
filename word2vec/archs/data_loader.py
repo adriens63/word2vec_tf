@@ -328,19 +328,19 @@ class Word2Int:
 
 class GetDataset:
     
-    def __init__(self, name_model, path: str) -> None:
+    def __init__(self, type_model, path: str) -> None:
         
-        assert(name_model in ['skip_gram', 'cbow'])
-        self.name_model = name_model
+        assert(type_model in ['skip_gram', 'cbow'])
+        self.type_model = type_model
         
         self.w2i = Word2Int()
         self.dl = DataLoader(path)
-        self.pipeline_fn = pipeline_skipgram if self.name_model == 'skip_gram' else pipeline_cbow
+        self.pipeline_fn = pipeline_skipgram if self.type_model == 'skip_gram' else pipeline_cbow
 
     
     def get_ds_ready(self):
         
-        return self.get_ds_ready_skip_gram() if self.name_model == 'skip_gram' else self.get_ds_ready_cbow()
+        return self.get_ds_ready_skip_gram() if self.type_model == 'skip_gram' else self.get_ds_ready_cbow()
     
     
     def get_ds_ready_skip_gram(self) -> tf.data.Dataset:

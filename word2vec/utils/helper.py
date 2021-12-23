@@ -1,4 +1,5 @@
 import yaml
+import os
 
 import word2vec.utils.trainer as t
 import word2vec.models.word2vec_models as w
@@ -21,5 +22,9 @@ def get_lr_scheduler_fn(lr_scheduler):
         return t.linear_decrease
     
 
-def get_config(config):
+def log_config(config, model_dir):
+    
+    config_path = os.join(model_dir, 'config.yml')
+    with open(config_path, 'w') as f:
+        yaml.dump(config, f)
     

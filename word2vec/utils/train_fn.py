@@ -1,6 +1,6 @@
+#TODO formating
 import word2vec.utils.trainer as t
 import word2vec.utils.helper as h
-import word2vec.models.word2vec_models as w
 import word2vec.archs.data_loader as dl
 import word2vec.archs.constants as c
 
@@ -15,8 +15,9 @@ def train(config):
     
     lr_scheduler = h.get_lr_scheduler_fn(config['lr_scheduler'])
     
-    train_data_loader = dl.GetDataset(config['type_model'], c.PATH)
-
+    train_data_loader = dl.GetDataset(config['type_model'], config['train_path'])
+    val_data_loader = None
+    
     trainer = t.Trainer(
                         device = config['device'],
                         model = w2v,
@@ -28,11 +29,21 @@ def train(config):
                         lr_scheduler = lr_scheduler,
                         train_data_loader = train_data_loader,
                         train_steps = config['train_step'],
-                        val_data_loader = None,
+                        val_data_loader = val_data_loader,
                         val_steps = config['val_step'],
                         checkpoint_frequency = config['checkpoint_frequency'],
                         model_name = config['model_name'],
-                        model_dir = c.WEIGHTS_PATH,
-                        log_dir = c.LOG_PATH
+                        weights_path = config['weights_path'],
+                        log_dir = config['log_path']
                         )
     
+    trainer.get_ds()
+    trainer.compile()
+    trainer.launch_training()
+    
+    trainer.save_weights()
+    trainer.log_metadata()
+    trainer.log_embeddings()
+    
+    h.log_config(config, config['weights_path'])
+    print('w2v saved to directory: ', config['weights_path'])
