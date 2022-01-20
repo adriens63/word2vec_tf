@@ -1,4 +1,4 @@
-model_name: w2v_skip_gram_1
+model_name: w2v_skip_gram_2
 
 type_model: skip_gram
 

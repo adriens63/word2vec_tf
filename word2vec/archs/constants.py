@@ -1,3 +1,5 @@
+N_ELEMNT = 100000
+
 CBOW_N_WORDS = 3
 SKIPGRAM_N_WORDS = 3 # context = 3 words before, 3 words after the target word
 
@@ -9,7 +11,7 @@ EMBEDDING_DIM = 256
 VOCAB_SIZE = 4096
 BATCH_SIZE = 64
 
-LANGUAGE = 'english'
+LANGUAGE = 'french'
 
 BUFFER_SIZE = 8192
 
