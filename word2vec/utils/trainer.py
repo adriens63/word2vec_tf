@@ -39,7 +39,6 @@ class Trainer:
         checkpoint_frequency,
         model_name,
         weights_path,
-        log_dir
         ):
         
         self.device = device
@@ -56,9 +55,9 @@ class Trainer:
         self.val_steps = val_steps
         self.checkpoint_frequency = checkpoint_frequency
         self.model_name = model_name
-        self.weights_path = weights_path
-        self.log_dir = log_dir
         
+        self.mod_dir = weights_path + model_name + '/'
+        self.log_dir = weights_path + model_name + '/log_dir/'
         self.compiled = False
         #TODO add callbacks with checkpoint_frequency, loss, weight visualisation
         #TODO add val_steps, train_steps, into code
@@ -114,7 +113,10 @@ class Trainer:
     
     def save_weights(self):
         
-        self.model.save_weights(self.weights_path + self.model_name + '.h5')
+        if not os.path.exists(self.mod_dir):
+            os.makedirs(self.mod_dir)
+        
+        self.model.save_weights(self.mod_dir + self.model_name + '.h5')
 
 
     def log_metadata(self):
@@ -143,12 +145,13 @@ class Trainer:
         config = projector.ProjectorConfig()
         embedding = config.embeddings.add()
 
-        embedding.tensor_name = 'embedding/.att/value'
+        embedding.tensor_name = "embedding/.ATTRIBUTES/VARIABLE_VALUE"
         embedding.metadata_path = 'metadata.tsv'
         projector.visualize_embeddings(self.log_dir, config)
 
 
 
+#TODO : modifier cette fonction pour qu'elle utilise le config.yml
 def linear_decrease(epoch, _):
     
     return PENTE * epoch + LR_INI

@@ -28,13 +28,12 @@ def train(config):
                         optimizer = config['optimizer'],
                         lr_scheduler = lr_scheduler,
                         train_data_loader = train_data_loader,
-                        train_steps = config['train_step'],
+                        train_steps = config['train_steps'],
                         val_data_loader = val_data_loader,
-                        val_steps = config['val_step'],
+                        val_steps = config['val_steps'],
                         checkpoint_frequency = config['checkpoint_frequency'],
                         model_name = config['model_name'],
                         weights_path = config['weights_path'],
-                        log_dir = config['log_path']
                         )
     
     trainer.get_ds()
@@ -44,6 +43,7 @@ def train(config):
     trainer.save_weights()
     trainer.log_metadata()
     trainer.log_embeddings()
+    trainer.config_projector()
     
-    h.log_config(config, config['weights_path'])
+    h.log_config(config, config['weights_path'] + config['model_name'])
     print('w2v saved to directory: ', config['weights_path'])

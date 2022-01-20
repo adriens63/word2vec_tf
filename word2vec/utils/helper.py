@@ -1,5 +1,8 @@
 import yaml
-import os
+
+import os.path as osp
+
+import tensorflow as tf
 
 import word2vec.utils.trainer as t
 import word2vec.models.word2vec_models as w
@@ -19,12 +22,12 @@ def get_lr_scheduler_fn(lr_scheduler):
     
     if lr_scheduler == 'linear_decrease':
         
-        return t.linear_decrease
+        return  tf.keras.callbacks.LearningRateScheduler(t.linear_decrease)
     
 
 def log_config(config, model_dir):
     
-    config_path = os.join(model_dir, 'config.yml')
+    config_path = osp.join(model_dir, 'config.yml')
     with open(config_path, 'w') as f:
         yaml.dump(config, f)
     

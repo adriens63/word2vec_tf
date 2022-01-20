@@ -4,11 +4,11 @@ sys.path.insert(0, "./")
 import tensorflow as tf
 import tensorflow.keras.layers as tfnn
 
-#from ..archs.constants import EMBEDDING_DIM, VOCAB_SIZE
+from ..archs.constants import EMBEDDING_DIM, VOCAB_SIZE
 
-#TODO : to remove after train notebook
-EMBEDDING_DIM = 256
-VOCAB_SIZE = 4096
+
+
+
 
 class Word2VecCBOW(tf.keras.Model):
     

@@ -315,6 +315,7 @@ class Word2Int:
         return self.text_vector_ds
     
     def get_vocab(self):
+        
         if not hasattr(self, 'inverse_vocab'):
             pass
         
