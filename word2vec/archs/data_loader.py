@@ -23,7 +23,8 @@ except ImportError:
     raise ImportError('constants' + ' not imported')
 
 try:
-    STOPWORDS = set(stopwords.words(c.LANGUAGE))
+    STOPWORDS = set(stopwords.words(c.LANGUAGE)) #TODO : verifier ici
+    STOPWORDS_TENSOR = list(STOPWORDS)
 except LookupError:
     import nltk
     nltk.download('stopwords')
@@ -34,6 +35,31 @@ except LookupError:
 
 AUTOTUNE = tf.data.AUTOTUNE
 
+
+
+
+
+# ******************** tools *************************
+
+def tf_isin(e: tf.Tensor, big_tensor: tf.Tensor):
+
+    return tf.math.reduce_any(tf.math.equal(e, big_tensor))
+
+
+@tf.function
+def remove_stop_words(rtensor):
+
+    ta = tf.TensorArray(tf.bool, size = 0, dynamic_size = True, clear_after_read = True)
+    i = 0
+    
+    for w in rtensor:
+
+        ta = ta.write(i, tf.math.logical_not(tf_isin(w, STOPWORDS_TENSOR)))
+        i += 1
+    
+    msk = ta.stack()
+    
+    return rtensor[msk]
 
 
 
@@ -51,7 +77,7 @@ class DataLoader:
             language ([type]): ex : 'english'
         """
         self.name = name
-        
+        self.stopwords_tensor = tf.constant(list(STOPWORDS))
         
     def load(self) -> None:
         """
@@ -65,7 +91,6 @@ class DataLoader:
     
         self.ds = tfds.load(name = self.name, split = 'train').take(N_ELEMNT)
         print(f'cardinality : {self.ds.cardinality()}')
-        print()
         
         self.ds_split = None
         
@@ -165,7 +190,7 @@ class DataLoader:
         return self.ds_split if self.ds_split is not None else self.ds
     
     
-    def prepare_(self, lower: bool = True, split: bool = True) -> tf.data.Dataset:
+    def prepare_old(self, lower: bool = True, split: bool = True) -> tf.data.Dataset:
         """
         TODO faire en sorte qu'il y ait un seul mapping au lieu de 3 -> plus vite
         TODO traduire en anglais
@@ -248,62 +273,14 @@ class DataLoader:
         self.ds_split = self.ds.map(lambda s : tf.strings.split(s, sep = ' '), num_parallel_calls = AUTOTUNE)
     
     
-    def without_stopwords(self, n_strings: int) -> List[str]:
-        """when iterating over tf.Dataset, you can't iterate over one element with a comprehension list or tf.map_fn
-        to remove the stopwords, we have to do it from the combined_strings
 
-        Args:
-            n_strings ([type]): [description]
-        Returns:
-            string
-        """     
-        combined_strings = self.combine_first_strings(n_strings)
-        word_list = combined_strings.split()
-        word_list_without_stop_words = [w for w in word_list if w not in STOPWORDS]
+    def without_stopwords(self):
         
-        return word_list_without_stop_words    
-
-    def combine_first_strings(self, n_strings: int) -> str:
-        """useful for wordcloud
-
-        Args:
-            n_strings ([type]): [description]
-        Returns:
-            string
-        """
-        combined_strings = ' '.join([s.numpy().decode('utf-8') for s in self.ds.take(n_strings).__iter__()])
+        self.ds = self.ds.map(lambda x : tf.strings.split(x, sep = ' '))
+        self.ds = self.ds.map(remove_stop_words)
+        self.ds = self.ds.map(lambda t : tf.strings.reduce_join(t, separator = ' '))
         
-        return combined_strings
-    
-    def combine_first_strings_all_ds(self) -> bytes:
-        """[summary]
-
-        Args:
-            n_strings ([type]): [description]
-        """
-        combined_strings = self.ds.reduce('', lambda s, s_: s + ' ' + s_)
-        
-        return combined_strings
-    
-    def list_of_sentences_without_stopwords(self) -> List[List[str]]:
-        """[summary]
-
-        Args:
-            n_strings ([type]): [description]
-        """
-        combined_strings_coma_separated = ', '.join([s.numpy().decode('utf-8') for s in self.ds.__iter__()])
-        list_of_sentences = combined_strings_coma_separated.split(sep = ', ')
-        list_of_sentences_split = [[w for w in s.split() if w not in STOPWORDS] for s in list_of_sentences]
-        
-        return list_of_sentences_split
-    
-    def list_of_sentences_without_stopwords_not_split(self) -> List[List[str]]:
-        """[summary]
-
-        Args:
-            n_strings ([type]): [description]
-        """                
-        return [' '.join([w for w in s]) for s in self.list_of_sentences_without_stopwords()]
+        return self.ds
 
 
 
@@ -345,6 +322,8 @@ def pipeline_cbow(batch):
 
 
 def pipeline_skipgram(tokenized_sequence):
+    #TODO : change this desc
+    #TODO : change pipeline cbow
     """
     return (context, target)
     where context is made of N = CBOW_N_WORDS past words and N = CBOW_N_WORDS future words
@@ -375,7 +354,7 @@ def pipeline_skipgram(tokenized_sequence):
     msk = tf.math.equal(msk, SKIPGRAM_N_WORDS)
     msk = tf.math.logical_not(msk)
     
-    for idx in range(tokenized_sequence.shape[0])[SKIPGRAM_N_WORDS: -SKIPGRAM_N_WORDS]:
+    for idx in range(tf.shape(tokenized_sequence)[0])[SKIPGRAM_N_WORDS: -SKIPGRAM_N_WORDS]:
         window = tokenized_sequence[idx - SKIPGRAM_N_WORDS: idx + SKIPGRAM_N_WORDS + 1]
         x = window[SKIPGRAM_N_WORDS]
         y_ = window[msk]
@@ -469,9 +448,8 @@ class GetDataset:
         print('done;')
         print()
         
-        print('.... Start removing stopwords : about 1s per 1k elements of the initial cardinality of the dataset')
-        list_without_stopwords = self.dl.list_of_sentences_without_stopwords_not_split()
-        text_ds = tf.data.Dataset.from_tensor_slices(list_without_stopwords)
+        print('.... Start removing stopwords')
+        text_ds = self.dl.without_stopwords()
         print('done;')
         print()
         
@@ -498,29 +476,15 @@ class GetDataset:
         # print('done;')
         # print()
         
-        for i, e in enumerate(text_vector_ds.take(20).__iter__()):
-            print(i)
-            print(e)
         
-        def size_filter(t):
-            print(t.shape)
-            print(t.shape[0])
-            print(2 * SKIPGRAM_N_WORDS + 1)
-            print(tf.math.greater_equal(t.shape[0], 2 * SKIPGRAM_N_WORDS + 1))
-            return tf.math.greater_equal(t.shape[0], 2 * SKIPGRAM_N_WORDS + 1)
-            
-        print('.... Filtering 1 the dataset')
-        ds = text_vector_ds.take(20).filter(size_filter)
-        print('done;')
-        print()    
         
         print('.... Filtering the dataset')
-        ds = text_vector_ds.filter(lambda x : tf.math.greater_equal(x.shape[0], 2 * SKIPGRAM_N_WORDS + 1))
+        ds = text_vector_ds.filter(lambda x : tf.math.greater_equal(tf.shape(x)[0], 2 * SKIPGRAM_N_WORDS + 1))
         print('done;')
         print()
         
         print('.... Mapping the pipeline function')
-        ds = ds.map(self.pipeline_fn)
+        ds = text_vector_ds.map(self.pipeline_fn)
         print('done;')
         print()
         
