@@ -344,7 +344,7 @@ def pipeline_cbow(batch):
 
 
 
-def pipeline_skipgram(batch):
+def pipeline_skipgram(tokenized_sequence):
     """
     return (context, target)
     where context is made of N = CBOW_N_WORDS past words and N = CBOW_N_WORDS future words
@@ -361,26 +361,30 @@ def pipeline_skipgram(batch):
         b ([type]): b is a batch (list) of tokenized sequences.
     """
     
-    context, target = [], []
+    ta = tf.TensorArray(tf.int64, size = 0, dynamic_size = True, clear_after_read = False)
+    i = 0
     
-    for tokenized_sequence in tqdm.tqdm(batch):
-        
-        if len(tokenized_sequence) < SKIPGRAM_N_WORDS * 2 + 1: # we do not take this sentence into account
-            continue
-        
-        if MAX_SEQ_LENGTH:
-            tokenized_sequence = tokenized_sequence[:MAX_SEQ_LENGTH]
-        
-        for idx in range(len(tokenized_sequence))[CBOW_N_WORDS: -CBOW_N_WORDS]:
-            window = tokenized_sequence[idx - CBOW_N_WORDS: idx + CBOW_N_WORDS + 1]
-            x = window.pop(CBOW_N_WORDS)
-            y_ = window # once the pop is done
-            
-            for y in y_:
-                context.append(y)
-                target.append(x)
     
-    return context, target
+    # if len(tokenized_sequence) < SKIPGRAM_N_WORDS * 2 + 1: # we do not take this sequence into account
+    #     continue
+    
+    if MAX_SEQ_LENGTH:
+        tokenized_sequence = tokenized_sequence[:MAX_SEQ_LENGTH]
+        
+    msk = tf.range(start = 0, limit = 2 * SKIPGRAM_N_WORDS + 1)
+    msk = tf.math.equal(msk, SKIPGRAM_N_WORDS)
+    msk = tf.math.logical_not(msk)
+    
+    for idx in range(tokenized_sequence.shape[0])[SKIPGRAM_N_WORDS: -SKIPGRAM_N_WORDS]:
+        window = tokenized_sequence[idx - SKIPGRAM_N_WORDS: idx + SKIPGRAM_N_WORDS + 1]
+        x = window[SKIPGRAM_N_WORDS]
+        y_ = window[msk]
+        
+        for y in y_:
+            ta = ta.write(i, (x, y))
+            i += 1
+    
+    return ta.stack()
 
 
 
@@ -409,7 +413,7 @@ class Word2Int:
         if not hasattr(self, 'inverse_vocab'):
             self.adapt(ds)
         
-        self.text_vector_ds = ds.batch(1024).prefetch(tf.data.AUTOTUNE).map(self.vectorize_layer).unbatch()
+        self.text_vector_ds = ds.batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE).map(self.vectorize_layer).unbatch()
         
         return self.text_vector_ds
     
@@ -471,38 +475,74 @@ class GetDataset:
         print('done;')
         print()
         
-        print('.... Adapting to TextVectorization and vectorization')
+        print('.... Adapting to TextVectorization')
         self.w2i.adapt(text_ds)
         self.vocab = self.w2i.inverse_vocab
+        print('done;')
+        print()
+        
+        print('.... Vectorization')
         text_vector_ds = self.w2i.vectorize(text_ds)
         print('done;')
         print()
         
-        print('.... Converting ds as a list for pipeline')
-        sequences_in_int = list(text_vector_ds.as_numpy_iterator())
-        sequences = [list(seq) for seq in sequences_in_int] # convert the numpy arrays in lists
+        # print('.... Converting ds as a list for pipeline')
+        # sequences_in_int = list(text_vector_ds.as_numpy_iterator())
+        # print('sequences_in_int list done...')
+        # sequences = [list(seq) for seq in sequences_in_int] # convert the numpy arrays in lists
+        # print('done;')
+        # print()
+        
+        # print('.... Starting pipeline')
+        # contexts, targets = self.pipeline_fn(sequences)
+        # print('done;')
+        # print()
+        
+        for i, e in enumerate(text_vector_ds.take(20).__iter__()):
+            print(i)
+            print(e)
+        
+        def size_filter(t):
+            print(t.shape)
+            print(t.shape[0])
+            print(2 * SKIPGRAM_N_WORDS + 1)
+            print(tf.math.greater_equal(t.shape[0], 2 * SKIPGRAM_N_WORDS + 1))
+            return tf.math.greater_equal(t.shape[0], 2 * SKIPGRAM_N_WORDS + 1)
+            
+        print('.... Filtering 1 the dataset')
+        ds = text_vector_ds.take(20).filter(size_filter)
+        print('done;')
+        print()    
+        
+        print('.... Filtering the dataset')
+        ds = text_vector_ds.filter(lambda x : tf.math.greater_equal(x.shape[0], 2 * SKIPGRAM_N_WORDS + 1))
         print('done;')
         print()
         
-        print('.... Starting pipeline')
-        contexts, targets = self.pipeline_fn(sequences)
+        print('.... Mapping the pipeline function')
+        ds = ds.map(self.pipeline_fn)
         print('done;')
         print()
         
-        def gen():
-            yield targets.pop(), contexts.pop()
+        print('.... Unbatching')
+        ds.unbatch()
+        print('done;')
+        print()
+        
+        # def gen():
+        #     yield targets.pop(), contexts.pop()
         
         #TODO : Remettre ca    
         # final_ds = tf.data.Dataset.from_generator(gen, 
         #                                             output_signature=(
         #                                             tf.TensorSpec(shape=(), dtype=tf.int64),
         #                                             tf.TensorSpec(shape=(), dtype=tf.int64)))
-        print('.... Builing dataset')
-        final_ds = tf.data.Dataset.from_tensor_slices((targets, contexts))
-        print('done;')
-        print('')
+        # print('.... Builing dataset')
+        # final_ds = tf.data.Dataset.from_tensor_slices((targets, contexts))
+        # print('done;')
+        # print('')
         
-        return final_ds#.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder = True).cache().prefetch(buffer_size = AUTOTUNE)
+        return ds#.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder = True).cache().prefetch(buffer_size = AUTOTUNE)
         
     
     def get_ds_ready_cbow(self) -> tf.data.Dataset:
