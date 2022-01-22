@@ -34,13 +34,14 @@ AUTOTUNE = tf.data.AUTOTUNE
 
 # ******************** tools *************************
 
-def tf_isin(e: tf.Tensor, big_tensor: tf.Tensor):
+def tf_isin(e: tf.Tensor, big_tensor: tf.Tensor) -> tf.bool:
 
     return tf.math.reduce_any(tf.math.equal(e, big_tensor))
 
 
+
 @tf.function
-def remove_stop_words(rtensor):
+def remove_stop_words(rtensor: tf.Tensor) -> tf.Tensor:
 
     ta = tf.TensorArray(tf.bool, size = 0, dynamic_size = True, clear_after_read = True)
     i = 0
@@ -53,6 +54,7 @@ def remove_stop_words(rtensor):
     msk = ta.stack()
     
     return rtensor[msk]
+
 
 
 
@@ -254,7 +256,7 @@ class DataLoader:
     
     
     @timeit
-    def without_stopwords(self):
+    def without_stopwords(self) -> tf.data.Dataset:
         
         self.ds = self.ds.map(lambda x : tf.strings.split(x, sep = ' '))
         self.ds = self.ds.map(remove_stop_words)
@@ -300,8 +302,6 @@ def pipeline_cbow(tokenized_sequence: tf.Tensor) -> tf.Tensor:
         i += 1
     
     return ta.stack()
-
-
 
 
 
@@ -393,24 +393,7 @@ class Word2Int:
         
 
 
-
-
 class GetDataset:
-    """[summary]
-    We load the data from a tf.data.Dataset
-    then we must (because we can't remove stopwords directly from the tf.data.Dataset) convert it to a list of sequences
-    then we split each sequences into words to remove the stopwords
-    then we join each words of the same sequences to form a list of sequences without stopwords
-    
-    then we create a new dataset ds from this list of sequences not split without the stopwords
-    we adapt the TextVectorization layer to the ds
-    we vectorize ds
-    
-    then we turn this ds into a list of sequences in integers
-    we apply the pipeline function on it
-    
-    we create our final ds from it, and don't batch it because it will be done in the Trainer
-    """
     
     def __init__(self, type_model, path: str) -> None:
         
@@ -420,14 +403,9 @@ class GetDataset:
         self.w2i = Word2Int()
         self.dl = DataLoader(path)
         self.pipeline_fn = pipeline_skipgram if self.type_model == 'skip_gram' else pipeline_cbow
-
-    
-    def get_ds_ready(self):
-        
-        return self.get_ds_ready_skip_gram() if self.type_model == 'skip_gram' else self.get_ds_ready_cbow()
     
     
-    def get_ds_ready_skip_gram(self) -> tf.data.Dataset:
+    def get_ds_ready(self) -> tf.data.Dataset:
         
         print(f"tf.__version__: {tf.__version__}")
         print()
@@ -466,22 +444,17 @@ class GetDataset:
         print('done;')
         print()
         
-        # print('xxxxxxxxx')
-        # for i, tupl in enumerate(ds.take(15).__iter__()):
-        #     print(i)
-        #     print(tupl)
-        
         print('.... Unbatching')
         with SpeedTest('unbatch'):    
             ds = ds.unbatch()
         print('done;')
         print()
-        
-        # print('xxxxxxxxx')
-        # for i, tupl in enumerate(ds.take(15).__iter__()):
-        #     print(i)
-        #     print(tupl)
-        
+            
+        print('.... Filtering the [0, 0] tensors')
+        with SpeedTest('filter'):     
+            ds = ds.filter(lambda x : tf.math.logical_not(tf.math.reduce_all(tf.math.equal(x, tf.constant([0, 0], dtype = tf.int64)))))
+        print('done;')
+        print()
         
         print('.... Turning into tuples')
         with SpeedTest('tuples'):
@@ -489,56 +462,8 @@ class GetDataset:
         print('done;')
         print()
         
-        
-        # print('xxxxxxxxx')
-        # for i, tupl in enumerate(ds.take(15).__iter__()):
-        #     print(i)
-        #     print(tupl)
-        
-        # def gen():
-        #     yield targets.pop(), contexts.pop()
-        
-        #TODO : Remettre ca    
-        # final_ds = tf.data.Dataset.from_generator(gen, 
-        #                                             output_signature=(
-        #                                             tf.TensorSpec(shape=(), dtype=tf.int64),
-        #                                             tf.TensorSpec(shape=(), dtype=tf.int64)))
-        # print('.... Builing dataset')
-        # final_ds = tf.data.Dataset.from_tensor_slices((targets, contexts))
-        # print('done;')
-        # print('')
-        
         return ds
         
-    
-    def get_ds_ready_cbow(self) -> tf.data.Dataset:
-        
-        self.dl.prepare()
-        
-        list_without_stopwords = self.dl.list_of_sentences_without_stopwords_not_split()
-        text_ds = tf.data.Dataset.from_tensor_slices(list_without_stopwords)
-        
-        self.w2i.adapt(text_ds)
-        self.vocab = self.w2i.inverse_vocab
-        text_vector_ds = self.w2i.vectorize(text_ds)
-        
-        sequences_in_int = list(text_vector_ds.as_numpy_iterator())
-        sequences = [list(seq) for seq in sequences_in_int] # convert the numpy arrays in lists
-        
-        
-        contexts, targets = self.pipeline_fn(sequences)
-        
-        def gen():
-            yield contexts.pop(), targets.pop() # here it i the other way around, compared to the previous method
-            
-        final_ds = tf.data.Dataset.from_generator(gen, 
-                                                    output_signature=(
-                                                    tf.TensorSpec(shape=(), dtype=tf.int64),
-                                                    tf.TensorSpec(shape=(), dtype=tf.int64)))
-        
-        print(final_ds)
-        
-        return final_ds.batch(BATCH_SIZE, drop_remainder = True).cache().prefetch(buffer_size = AUTOTUNE)
     
     def get_vocab(self):
         

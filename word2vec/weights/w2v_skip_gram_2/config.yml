@@ -1,0 +1,16 @@
+checkpoint_frequency: null
+dataset: french_wikipedia
+device: /device:GPU:0
+epochs: 2
+learning_rate: 0.025
+loss_fn: sparse_categorical_crossentropy
+lr_scheduler: linear_decrease
+model_name: w2v_skip_gram_2
+optimizer: adam
+small_wiki: false
+train_path: wikipedia/20201201.fr
+train_steps: null
+type_model: skip_gram
+val_path: null
+val_steps: null
+weights_path: ./word2vec/weights/

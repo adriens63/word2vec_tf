@@ -39,7 +39,7 @@ class Trainer:
         checkpoint_frequency,
         model_name,
         weights_path,
-        ):
+        ) -> None:
         
         self.device = device
         self.model = model
@@ -63,7 +63,7 @@ class Trainer:
         #TODO add val_steps, train_steps, into code
     
     
-    def launch_training(self):
+    def launch_training(self) -> None:
         
         if not hasattr(self, 'train_ds'):
             
@@ -89,7 +89,7 @@ class Trainer:
         print()
         
     
-    def compile(self):
+    def compile(self) -> None:
         
         self.model.compile(optimizer = self.optimizer,
                             loss = self.loss_fn,
@@ -99,7 +99,7 @@ class Trainer:
         self.compiled = True
                 
     
-    def get_ds(self):
+    def get_ds(self) -> None:
         
         self.train_ds = self.train_data_loader.get_ds_ready()
         self.train_ds = self.train_ds.shuffle(self.buffer_size).batch(self.batch_size, drop_remainder = True).cache().prefetch(buffer_size = AUTOTUNE)
@@ -115,7 +115,7 @@ class Trainer:
             self.val_ds = None
     
     
-    def save_weights(self):
+    def save_weights(self) -> None:
         
         if not os.path.exists(self.mod_dir):
             os.makedirs(self.mod_dir)
@@ -123,7 +123,7 @@ class Trainer:
         self.model.save_weights(self.mod_dir + self.model_name + '.h5')
 
 
-    def log_metadata(self):
+    def log_metadata(self) -> None:
         
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
@@ -135,7 +135,7 @@ class Trainer:
                 f.write('unknown #{}\n'.format(unknown))
 
     
-    def log_embeddings(self):
+    def log_embeddings(self) -> None:
         
         weights = tf.Variable(self.model.layers[0].get_weights()[0][1:])
         # Create a checkpoint from embedding, the filename and key are the
@@ -144,7 +144,7 @@ class Trainer:
         checkpoint.save(os.path.join(self.log_dir, 'embedding.ckpt'))
 
 
-    def config_projector(self):
+    def config_projector(self) -> None:
     
         config = projector.ProjectorConfig()
         embedding = config.embeddings.add()

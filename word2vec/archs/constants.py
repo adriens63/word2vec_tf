@@ -15,11 +15,6 @@ LANGUAGE = 'french'
 
 BUFFER_SIZE = 8192
 
-#/!\ only useful for train_old, otherwise modify it in the config.yaml file 
-PATH = '/coding_linux20/programming/datasets/wikitext-2-raw' + '/wiki.train.raw'
-LOG_PATH = './logs' # path from word2vec_tf, because we launch with 'python -m word2vec.train'
-WEIGHTS_PATH = './word2vec/weights/'
-
-NUM_EPOCHS = 5
+NUM_EPOCHS = 4
 LR_INI = 0.025
 PENTE = - LR_INI / NUM_EPOCHS

@@ -11,7 +11,7 @@ except ImportError:
 import nltk
 from nltk.corpus import stopwords
     
-from typing import List, Any, Dict
+from typing import List, Any
 
 import tqdm
 
@@ -94,14 +94,6 @@ class DataLoader:
             self.load()
     
         def content_filter(x: tf.Tensor) -> tf.Tensor:
-            """[summary]
-            Delete all the string of align, dash, and presentation to only keep text
-            Args:
-                x (tf.Tensor): [description]
-
-            Returns:
-                tf.Tensor: [description]
-            """
 
             return tf.logical_not(tf.strings.regex_full_match(x, '([[:space:]][=])+.+([[:space:]][=])+[[:space:]]*'))
 
@@ -120,14 +112,10 @@ class DataLoader:
         def remove_first_and_last_spaces(x: tf.Tensor) -> tf.Tensor:
             
             return tf.strings.regex_replace(x, "^\s*|\s*$", '', replace_global=True)
-        
-        def remove_align(x: Dict[str, tf.Tensor]) -> tf.Tensor:
-
-            return tf.strings.regex_replace(x['text'], '\n', ' ', replace_global=True)
 
         def all_mapping_in_one(x: tf.Tensor) -> tf.Tensor:
             
-            return remove_first_and_last_spaces(remove_multiple_spaces(remove_the_at(remove_align(x))))
+            return remove_first_and_last_spaces(remove_multiple_spaces(remove_symbols(remove_the_at(x))))
 
         # ************* basic treatment ************
         
@@ -159,7 +147,6 @@ class DataLoader:
     def split(self) -> None:
         
         self.ds_split = self.ds.map(lambda s : tf.strings.split(s, sep = ' '), num_parallel_calls = AUTOTUNE)
-    
     
     def without_stopwords(self, n_strings: int) -> List[str]:
         """when iterating over tf.Dataset, you can't iterate over one element with a comprehension list or tf.map_fn
@@ -314,7 +301,7 @@ class Word2Int:
             ds ([type]): [description]
         """
         
-        self.vectorize_layer.adapt(ds.batch(batch_size = BATCH_SIZE))
+        self.vectorize_layer.adapt(ds)
         self.inverse_vocab = self.vectorize_layer.get_vocabulary() # l'indice est l'entier associé, le mot le plus fréquent etant en premier
         
     def vectorize(self, ds):
@@ -322,7 +309,7 @@ class Word2Int:
         if not hasattr(self, 'inverse_vocab'):
             self.adapt(ds)
         
-        self.text_vector_ds = ds.batch(1024).prefetch(tf.data.AUTOTUNE).map(self.vectorize_layer).unbatch()
+        self.text_vector_ds = ds.map(self.vectorize_layer)
         
         return self.text_vector_ds
     
@@ -340,21 +327,6 @@ class Word2Int:
 
 
 class GetDataset:
-    """[summary]
-    We load the data from a tf.data.Dataset
-    then we must (because we can't remove stopwords directly from the tf.data.Dataset) convert it to a list of sequences
-    then we split each sequences into words to remove the stopwords
-    then we join each words of the same sequences to form a list of sequences without stopwords
-    
-    then we create a new dataset ds from this list of sequences not split without the stopwords
-    we adapt the TextVectorization layer to the ds
-    we vectorize ds
-    
-    then we turn this ds into a list of sequences in integers
-    we apply the pipeline function on it
-    
-    we create our final ds from it, and don't batch it because it will be done in the Trainer
-    """
     
     def __init__(self, type_model, path: str) -> None:
         
@@ -390,17 +362,12 @@ class GetDataset:
         
         def gen():
             yield targets.pop(), contexts.pop()
-        
-        #TODO : Remettre ca    
-        # final_ds = tf.data.Dataset.from_generator(gen, 
-        #                                             output_signature=(
-        #                                             tf.TensorSpec(shape=(), dtype=tf.int64),
-        #                                             tf.TensorSpec(shape=(), dtype=tf.int64)))
+
         
         final_ds = tf.data.Dataset.from_tensor_slices((targets, contexts))
 
         
-        return final_ds#.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder = True).cache().prefetch(buffer_size = AUTOTUNE)
+        return final_ds
         
     
     def get_ds_ready_cbow(self) -> tf.data.Dataset:
