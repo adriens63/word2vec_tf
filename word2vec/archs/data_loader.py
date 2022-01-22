@@ -187,22 +187,7 @@ class DataLoader:
     
     def prepare_old(self, lower: bool = True, split: bool = True) -> tf.data.Dataset:
         """
-        TODO faire en sorte qu'il y ait un seul mapping au lieu de 3 -> plus vite
-        TODO traduire en anglais
-        TODO Fonction à adapter en fonction de la dataset, marche ici pour une ds wikipédia classique
-        split les strings
-        fait le mapping des remplacements ie :
-            enleve le symbole @-@ qui est un peu partout, surement les hyperliens je pense, mais qui ous est inutile
-            eleve ce qui n'est pas une lettre (symboles chinois etc)
-            enleve les espaces multiples et les remplace par un seul espace
-        filtre les strings vides
-        filtre les strings d'un caractère (transition entre paragraphe)
-        filtre les titres de paragraphes wikipedia
-
-        cache et prefetch pour plus de rapidité
-
-        
-        remove_symbols is equivalent of 'isalpha()'
+        old_version
         
         Args:
             lower (bool, optional): [description]. Defaults to True.
@@ -279,9 +264,10 @@ class DataLoader:
 
 
 
-def pipeline_cbow(batch):
+def pipeline_cbow(tokenized_sequence: tf.Tensor) -> tf.Tensor:
+    #TODO : mieux tester cette fonction
     """
-    return (context, target)
+    return the tensor of each [context, target] pair
     where context is made of N = CBOW_N_WORDS past words and N = CBOW_N_WORDS future words
     target is the word in the middle.
     
@@ -291,36 +277,39 @@ def pipeline_cbow(batch):
     Each element in `target` is a middle word.
     
     Args:
-        b ([type]): b is a batch (list) of tokenized sequences.
+        tokenized_sequence ([type]): tokenized_sequence is a tensor of one tokenized sequences.
     """
     
-    context, target = [], []
+    ta = tf.TensorArray(tf.int64, size = 0, dynamic_size = True, clear_after_read = False)
+    i = 0
     
-    for tokenized_sequence in tqdm.tqdm(batch):
-        
-        if len(tokenized_sequence) < SKIPGRAM_N_WORDS * 2 + 1: # we do not take this sentence into account
-            continue
-        
-        if MAX_SEQ_LENGTH:
-            tokenized_sequence = tokenized_sequence[:MAX_SEQ_LENGTH]
-        
-        for idx in range(len(tokenized_sequence))[CBOW_N_WORDS: -CBOW_N_WORDS]:
-            window = tokenized_sequence[idx - CBOW_N_WORDS: idx + CBOW_N_WORDS + 1]
-            y = window.pop(CBOW_N_WORDS)
-            x = window # once the pop is done
-            context.append(x)
-            target.append(y)
     
-    return context, target
+    if MAX_SEQ_LENGTH:
+        tokenized_sequence = tokenized_sequence[:MAX_SEQ_LENGTH]
+        
+    msk = tf.range(start = 0, limit = 2 * SKIPGRAM_N_WORDS + 1)
+    msk = tf.math.equal(msk, SKIPGRAM_N_WORDS)
+    msk = tf.math.logical_not(msk)
+    
+    for idx in range(tf.shape(tokenized_sequence)[0])[CBOW_N_WORDS: -CBOW_N_WORDS]:
+        window = tokenized_sequence[idx - CBOW_N_WORDS: idx + CBOW_N_WORDS + 1]
+        y = window[SKIPGRAM_N_WORDS]
+        x = window[msk]
+        
+        ta = ta.write(i, (x, y))
+        i += 1
+    
+    return ta.stack()
 
 
 
 
-def pipeline_skipgram(tokenized_sequence):
-    #TODO : change this desc
-    #TODO : change pipeline cbow
+
+
+def pipeline_skipgram(tokenized_sequence: tf.Tensor) -> tf.Tensor:
+    #TODO : filter pour ne pas qu'il y ait des tokenized_sequence de moins de SKIPGRAM_N_WORDS * 2 + 1
     """
-    return (context, target)
+    return the tensor of each [context, target] pair
     where context is made of N = CBOW_N_WORDS past words and N = CBOW_N_WORDS future words
     target is the word in the middle.
     
@@ -332,15 +321,12 @@ def pipeline_skipgram(tokenized_sequence):
     /!\ the 'target' will be fed as the input of the skip-gram word2vec, and the model will try try to predict the 'context' 
     
     Args:
-        b ([type]): b is a batch (list) of tokenized sequences.
+        tokenized_sequence ([type]): tokenized_sequence is a tensor of one tokenized sequences.
     """
     
     ta = tf.TensorArray(tf.int64, size = 0, dynamic_size = True, clear_after_read = False)
     i = 0
     
-    
-    # if len(tokenized_sequence) < SKIPGRAM_N_WORDS * 2 + 1: # we do not take this sequence into account
-    #     continue
     
     if MAX_SEQ_LENGTH:
         tokenized_sequence = tokenized_sequence[:MAX_SEQ_LENGTH]
