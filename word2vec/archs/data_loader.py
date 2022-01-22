@@ -4,11 +4,6 @@ sys.path.insert(0, "../")
 import tensorflow as tf
 import tensorflow_datasets as tfds
 
-try:
-    from word2vec.archs.constants import CBOW_N_WORDS, SKIPGRAM_N_WORDS, MIN_WORD_FREQUENCY, MAX_SEQ_LENGTH, BATCH_SIZE, VOCAB_SIZE, BUFFER_SIZE, N_ELEMNT
-except ImportError:
-    raise ImportError('constants' + ' non importé')
-
 import nltk
 from nltk.corpus import stopwords
     
@@ -16,19 +11,17 @@ from typing import List, Any, Dict
 
 import tqdm
 
-try:
-    import word2vec.archs.constants as c
-except ImportError:
-    c = None
-    raise ImportError('constants' + ' not imported')
+from word2vec.archs.constants import (CBOW_N_WORDS, SKIPGRAM_N_WORDS, MIN_WORD_FREQUENCY, MAX_SEQ_LENGTH, 
+                                      BATCH_SIZE, VOCAB_SIZE, BUFFER_SIZE, N_ELEMNT, LANGUAGE)
+from word2vec.tools.timer import timeit, SpeedTest
 
 try:
-    STOPWORDS = set(stopwords.words(c.LANGUAGE)) #TODO : verifier ici
+    STOPWORDS = set(stopwords.words(LANGUAGE))
     STOPWORDS_TENSOR = list(STOPWORDS)
 except LookupError:
     import nltk
     nltk.download('stopwords')
-    STOPWORDS = set(stopwords.words(c.LANGUAGE))
+    STOPWORDS = set(stopwords.words(LANGUAGE))
 
 
 # ******************** global constants ******************
@@ -79,6 +72,7 @@ class DataLoader:
         self.name = name
         self.stopwords_tensor = tf.constant(list(STOPWORDS))
         
+        
     def load(self) -> None:
         """
         self.ds : the dataset, can be lowered, but never split
@@ -94,6 +88,8 @@ class DataLoader:
         
         self.ds_split = None
         
+        
+    @timeit  
     def prepare(self, lower: bool = True, split: bool = True) -> tf.data.Dataset:
         """
         The function 'remove...' must be adapted to the dataset, given the format of the data
@@ -145,7 +141,7 @@ class DataLoader:
             Returns:
                 tf.Tensor: [description]
             """
-            
+        
             return tf.strings.regex_replace(x, "[.,/#!$%\^&\*;:{}=\-_`~()]", '', replace_global=True)
 
         def remove_multiple_spaces(x: tf.Tensor) -> tf.Tensor:
@@ -159,7 +155,6 @@ class DataLoader:
         def all_mapping_in_one(x: tf.Tensor) -> tf.Tensor:
             
             return remove_first_and_last_spaces(remove_multiple_spaces(remove_punctuation(remove_the_at(x))))
-        
         
         def remove_align(x: Dict[str, tf.Tensor]) -> tf.Tensor:
 
@@ -273,12 +268,12 @@ class DataLoader:
         self.ds_split = self.ds.map(lambda s : tf.strings.split(s, sep = ' '), num_parallel_calls = AUTOTUNE)
     
     
-
+    @timeit
     def without_stopwords(self):
         
         self.ds = self.ds.map(lambda x : tf.strings.split(x, sep = ' '))
         self.ds = self.ds.map(remove_stop_words)
-        self.ds = self.ds.map(lambda t : tf.strings.reduce_join(t, separator = ' '))
+        self.ds = self.ds.map(lambda t : tf.strings.reduce_join(t, separator = ' ')).cache().prefetch(AUTOTUNE)
         
         return self.ds
 
@@ -377,6 +372,8 @@ class Word2Int:
                                                                               output_mode = 'int'
                                                                               )
     
+    
+    @timeit
     def adapt(self, ds):
         """Takes a batched ds
 
@@ -386,7 +383,9 @@ class Word2Int:
         
         self.vectorize_layer.adapt(ds.batch(batch_size = BATCH_SIZE))
         self.inverse_vocab = self.vectorize_layer.get_vocabulary() # l'indice est l'entier associé, le mot le plus fréquent etant en premier
-        
+    
+    
+    @timeit    
     def vectorize(self, ds):
         
         if not hasattr(self, 'inverse_vocab'):
@@ -395,6 +394,7 @@ class Word2Int:
         self.text_vector_ds = ds.batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE).map(self.vectorize_layer).unbatch()
         
         return self.text_vector_ds
+    
     
     def get_vocab(self):
         
@@ -426,13 +426,13 @@ class GetDataset:
     we create our final ds from it, and don't batch it because it will be done in the Trainer
     """
     
-    def __init__(self, type_model, name: str) -> None:
+    def __init__(self, type_model, path: str) -> None:
         
         assert(type_model in ['skip_gram', 'cbow'])
         self.type_model = type_model
         
         self.w2i = Word2Int()
-        self.dl = DataLoader(name)
+        self.dl = DataLoader(path)
         self.pipeline_fn = pipeline_skipgram if self.type_model == 'skip_gram' else pipeline_cbow
 
     
@@ -443,6 +443,9 @@ class GetDataset:
     
     def get_ds_ready_skip_gram(self) -> tf.data.Dataset:
         
+        print(f"tf.__version__: {tf.__version__}")
+        print()
+        
         print('.... Start preparing dataset')
         self.dl.prepare()
         print('done;')
@@ -450,6 +453,7 @@ class GetDataset:
         
         print('.... Start removing stopwords')
         text_ds = self.dl.without_stopwords()
+        print(f'kind of dataset : {text_ds}')
         print('done;')
         print()
         
@@ -464,34 +468,46 @@ class GetDataset:
         print('done;')
         print()
         
-        # print('.... Converting ds as a list for pipeline')
-        # sequences_in_int = list(text_vector_ds.as_numpy_iterator())
-        # print('sequences_in_int list done...')
-        # sequences = [list(seq) for seq in sequences_in_int] # convert the numpy arrays in lists
-        # print('done;')
-        # print()
-        
-        # print('.... Starting pipeline')
-        # contexts, targets = self.pipeline_fn(sequences)
-        # print('done;')
-        # print()
-        
-        
-        
         print('.... Filtering the dataset')
-        ds = text_vector_ds.filter(lambda x : tf.math.greater_equal(tf.shape(x)[0], 2 * SKIPGRAM_N_WORDS + 1))
+        with SpeedTest('filter'):     
+            ds = text_vector_ds.filter(lambda x : tf.math.greater_equal(tf.shape(x)[0], 2 * SKIPGRAM_N_WORDS + 1))
         print('done;')
         print()
         
         print('.... Mapping the pipeline function')
-        ds = text_vector_ds.map(self.pipeline_fn)
+        with SpeedTest('map'):
+            ds = text_vector_ds.map(self.pipeline_fn)
         print('done;')
         print()
         
+        # print('xxxxxxxxx')
+        # for i, tupl in enumerate(ds.take(15).__iter__()):
+        #     print(i)
+        #     print(tupl)
+        
         print('.... Unbatching')
-        ds.unbatch()
+        with SpeedTest('unbatch'):    
+            ds = ds.unbatch()
         print('done;')
         print()
+        
+        # print('xxxxxxxxx')
+        # for i, tupl in enumerate(ds.take(15).__iter__()):
+        #     print(i)
+        #     print(tupl)
+        
+        
+        print('.... Turning into tuples')
+        with SpeedTest('tuples'):
+            ds = ds.map(lambda t: (t[0], t[1]))
+        print('done;')
+        print()
+        
+        
+        # print('xxxxxxxxx')
+        # for i, tupl in enumerate(ds.take(15).__iter__()):
+        #     print(i)
+        #     print(tupl)
         
         # def gen():
         #     yield targets.pop(), contexts.pop()
@@ -506,7 +522,7 @@ class GetDataset:
         # print('done;')
         # print('')
         
-        return ds#.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder = True).cache().prefetch(buffer_size = AUTOTUNE)
+        return ds
         
     
     def get_ds_ready_cbow(self) -> tf.data.Dataset:

@@ -1,4 +1,4 @@
-N_ELEMNT = 500000
+N_ELEMNT = 10000
 
 CBOW_N_WORDS = 3
 SKIPGRAM_N_WORDS = 3 # context = 3 words before, 3 words after the target word

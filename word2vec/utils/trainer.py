@@ -73,6 +73,8 @@ class Trainer:
             
             self.compile()
         
+        print('.... Start training')
+        print(f'device : {self.device}')
         
         with tf.device(self.device):
             self.model.fit(self.train_ds,
@@ -83,7 +85,9 @@ class Trainer:
                             verbose = 1,
                             shuffle = False # the data is already shuffled when loaded
                             )
-    
+        print('done;')
+        print()
+        
     
     def compile(self):
         

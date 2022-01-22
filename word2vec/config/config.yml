@@ -2,17 +2,17 @@ model_name: w2v_skip_gram_2
 
 type_model: skip_gram
 
-dataset: wiki_text_2
+dataset: wiki_fr_10k
 optimizer: adam
 loss_fn: sparse_categorical_crossentropy
 learning_rate: 0.025
 lr_scheduler: linear_decrease
-epochs: 5
+epochs: 2
 train_steps: 
 val_steps: 
 
-train_path: /coding_linux20/programming/datasets/wikitext-2-raw/wiki.train.raw
-val_path: /coding_linux20/programming/datasets/wikitext-2-raw/wiki.valid.raw
+train_path: 'wikipedia/20201201.fr'
+val_path: 
 weights_path: ./word2vec/weights/
 
 checkpoint_frequency: 
