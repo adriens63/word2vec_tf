@@ -1,0 +1,21 @@
+model_name: w2v_skip_gram_3
+
+type_model: skip_gram
+
+dataset: french_wikipedia
+small_wiki: False
+optimizer: adam
+loss_fn: sparse_categorical_crossentropy
+lr: 0.025
+lr_scheduler: linear_decrease
+epochs: 4
+train_steps: 
+val_steps: 
+
+train_path: wikipedia/20201201.fr
+val_path: 
+weights_path: ./word2vec/weights/
+
+checkpoint_frequency: 
+
+device: /device:GPU:0

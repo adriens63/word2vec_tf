@@ -1,16 +1,16 @@
+N_ELEMNT = 10000
+
 CBOW_N_WORDS = 3
-SKIPGRAM_N_WORDS = 3 # contexte = 3 mots avant, 3 mots après le mot target
+SKIPGRAM_N_WORDS = 3 # context = 3 words before, 3 words after the target word
 
 MIN_WORD_FREQUENCY = 30
-MAX_SEQ_LENGTH = 256 # à definir à zéro si on ne veut pas de troncature des paragraphes
+MAX_SEQ_LENGTH = 256 # define it to 0 for no truncature
 
 EMBEDDING_DIM = 256
 
 VOCAB_SIZE = 4096
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 
-LANGUAGE = 'english'
+LANGUAGE = 'french'
 
 BUFFER_SIZE = 8192
-
-PATH = '/coding_linux20/programming/datasets/wikitext-2-raw' + '/wiki.train.raw'

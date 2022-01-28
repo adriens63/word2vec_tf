@@ -1,0 +1,15 @@
+checkpoint_frequency: null
+dataset: wiki_text_2
+device: /device:GPU:0
+epochs: 5
+learning_rate: 0.025
+loss_fn: sparse_categorical_crossentropy
+lr_scheduler: linear_decrease
+model_name: w2v_skip_gram_1
+optimizer: adam
+train_path: /coding_linux20/programming/datasets/wikitext-2-raw/wiki.train.raw
+train_steps: null
+type_model: skip_gram
+val_path: /coding_linux20/programming/datasets/wikitext-2-raw/wiki.valid.raw
+val_steps: null
+weights_path: ./word2vec/weights/

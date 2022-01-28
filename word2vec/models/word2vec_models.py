@@ -1,7 +1,13 @@
+import sys
+sys.path.insert(0, "./")
+
 import tensorflow as tf
 import tensorflow.keras.layers as tfnn
 
 from ..archs.constants import EMBEDDING_DIM, VOCAB_SIZE
+
+
+
 
 
 class Word2VecCBOW(tf.keras.Model):
