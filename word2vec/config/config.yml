@@ -6,7 +6,7 @@ dataset: french_wikipedia
 small_wiki: False
 optimizer: adam
 loss_fn: sparse_categorical_crossentropy
-learning_rate: 0.025
+lr: 0.025
 lr_scheduler: linear_decrease
 epochs: 4
 train_steps: 

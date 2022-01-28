@@ -14,7 +14,7 @@ def train(config) -> None:
     model_class = h.get_model_class(config['type_model'])
     w2v = model_class()
     
-    lr_scheduler = h.get_lr_scheduler_fn(config['lr_scheduler'])
+    lr_scheduler = h.get_lr_scheduler_fn(lr_scheduler = config['lr_scheduler'], initial_lr = config['lr'], step_size = config['epochs'])
     
     if config['small_wiki']:
         train_data_loader = dls.GetDataset(config['type_model'], config['train_path'])

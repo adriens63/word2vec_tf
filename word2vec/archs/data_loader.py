@@ -24,6 +24,9 @@ except LookupError:
     STOPWORDS = set(stopwords.words(LANGUAGE))
 
 
+
+
+
 # ******************** global constants ******************
 
 AUTOTUNE = tf.data.AUTOTUNE
@@ -37,6 +40,7 @@ AUTOTUNE = tf.data.AUTOTUNE
 def tf_isin(e: tf.Tensor, big_tensor: tf.Tensor) -> tf.bool:
 
     return tf.math.reduce_any(tf.math.equal(e, big_tensor))
+
 
 
 
@@ -266,6 +270,7 @@ class DataLoader:
 
 
 
+
 def pipeline_cbow(tokenized_sequence: tf.Tensor) -> tf.Tensor:
     #TODO : mieux tester cette fonction
     """
@@ -307,7 +312,6 @@ def pipeline_cbow(tokenized_sequence: tf.Tensor) -> tf.Tensor:
 
 
 def pipeline_skipgram(tokenized_sequence: tf.Tensor) -> tf.Tensor:
-    #TODO : filter pour ne pas qu'il y ait des tokenized_sequence de moins de SKIPGRAM_N_WORDS * 2 + 1
     """
     return the tensor of each [context, target] pair
     where context is made of N = CBOW_N_WORDS past words and N = CBOW_N_WORDS future words

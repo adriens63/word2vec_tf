@@ -18,6 +18,7 @@ def timeit(method):
 
 
 
+
 class SpeedTest: 
     def __init__(self, testName=""): 
         self.funcName = testName 

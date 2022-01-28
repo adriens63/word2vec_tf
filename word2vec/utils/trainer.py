@@ -1,10 +1,11 @@
-#TODO : create a class Trainer to wrap up these functions
 import tensorflow as tf
 from tensorboard.plugins import projector
 
+import pickle
+
 import os
 
-from ..archs.constants import PENTE, LR_INI, VOCAB_SIZE
+from ..archs.constants import VOCAB_SIZE
 
 
 
@@ -13,6 +14,36 @@ from ..archs.constants import PENTE, LR_INI, VOCAB_SIZE
 # ******************** global constants ******************
 
 AUTOTUNE = tf.data.AUTOTUNE
+
+
+
+
+
+# ************************* Checkpoint *******************
+
+class Checkpoint(tf.keras.callbacks.ModelCheckpoint):
+
+    def __init__(self, model, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.model = model
+
+    def on_epoch_end(self, epoch, logs=None):
+        super().on_epoch_end(epoch, logs)\
+
+        # Also save the optimizer state
+        filepath = self._get_file_path(epoch, logs)
+        filepath = filepath.rsplit(".", 1)[0]
+        filepath += ".pkl"
+
+        with open(filepath, 'wb') as fp:
+            pickle.dump(
+            {
+            'opt': self.model.optimizer.get_config(),
+            'epoch': epoch+1
+            # Add additional keys if you need to store more values
+            }, fp, protocol = pickle.HIGHEST_PROTOCOL)
+        print('Epoch %05d: saving optimizer to %s' % (epoch + 1, filepath))
+        print()
 
 
 
@@ -58,10 +89,16 @@ class Trainer:
         
         self.mod_dir = weights_path + model_name + '/'
         self.log_dir = weights_path + model_name + '/log_dir/'
+        self.ckp_dir = weights_path + model_name + '/ckp_dir/'
         self.compiled = False
-        #TODO add callbacks with checkpoint_frequency, loss, weight visualisation
         #TODO add val_steps, train_steps, into code
-    
+
+        #self.checkpoint = Checkpoint(model, self.ckp_dir + 'model-{epoch:02d}-{loss:.2f}.hdf5', monitor = 'val_loss', verbose = 1)
+        #self.checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath = self.ckp_dir + 'model-{epoch:02d}-{loss:.2f}', monitor = 'loss', save_freq = 'epoch', period = 1, verbose = 1)
+        # self.tnsorboard = tf.keras.callbacks.TensorBoard(
+        #                                                 log_dir = 'logs', histogram_freq = 0, write_graph = True,
+        #                                                 write_images = False, write_steps_per_second = False, update_freq = 'epoch')
+                                                    
     
     def launch_training(self) -> None:
         
@@ -79,8 +116,10 @@ class Trainer:
         with tf.device(self.device):
             self.model.fit(self.train_ds,
                             epochs = self.epochs,
-                            #callbacks = [tensorboard],
-                            callbacks = [self.lr_scheduler],
+                            callbacks = [self.lr_scheduler, 
+                                         #self.checkpoint, 
+                                         #self.tnsorboard
+                                         ],
                             validation_data = self.val_ds,
                             verbose = 1,
                             shuffle = False # the data is already shuffled when loaded
@@ -155,38 +194,4 @@ class Trainer:
 
 
 
-#TODO : modifier cette fonction pour qu'elle utilise le config.yml
-def linear_decrease(epoch, _):
-    
-    return PENTE * epoch + LR_INI
 
-
-def log_metadata(log_dir, inverse_vocab):
-    
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-
-    with open(os.path.join(log_dir, 'metadata.tsv'), 'w') as f:
-        for word in inverse_vocab:
-            f.write('{}\n'.format(word))
-        for unknown in range(1, VOCAB_SIZE - len(inverse_vocab)):
-            f.write('unknown #{}\n'.format(unknown))
-            
-
-def log_embeddings(log_dir, model):
-    
-    weights = tf.Variable(model.layers[0].get_weights()[0][1:])
-    # Create a checkpoint from embedding, the filename and key are the
-    # name of the tensor.
-    checkpoint = tf.train.Checkpoint(embedding = weights)
-    checkpoint.save(os.path.join(log_dir, 'embedding.ckpt'))
-
-
-def config_projector(log_dir):
-    
-    config = projector.ProjectorConfig()
-    embedding = config.embeddings.add()
-
-    embedding.tensor_name = 'embedding/.att/value'
-    embedding.metadata_path = 'metadata.tsv'
-    projector.visualize_embeddings(log_dir, config)

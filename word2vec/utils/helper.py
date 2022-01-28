@@ -4,10 +4,8 @@ import os.path as osp
 
 import tensorflow as tf
 
-import word2vec.utils.trainer as t
 import word2vec.models.word2vec_models as w
-import word2vec.archs.data_loader as dl
-import word2vec.archs.constants as c
+
 
 
 
@@ -18,12 +16,18 @@ def get_model_class(type_model):
 
 
 
-def get_lr_scheduler_fn(lr_scheduler):
+    
+def get_lr_scheduler_fn(lr_scheduler, initial_lr = 1e-3, step_size = 10):
     
     if lr_scheduler == 'linear_decrease':
         
-        return  tf.keras.callbacks.LearningRateScheduler(t.linear_decrease)
+        def schedule(epoch):
+            return initial_lr - epoch * initial_lr / step_size
+        
+        return tf.keras.callbacks.LearningRateScheduler(schedule)
     
+
+
 
 def log_config(config, model_dir):
     
