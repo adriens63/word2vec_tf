@@ -5,7 +5,7 @@ import pickle
 
 import os
 
-from ..archs.constants import VOCAB_SIZE
+from ..archs.constants import VOCAB_SIZE, MEMORY_GPU
 
 
 
@@ -97,8 +97,7 @@ class Trainer:
         #self.checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath = self.ckp_dir + 'model-{epoch:02d}-{loss:.2f}', monitor = 'loss', save_freq = 'epoch', period = 1, verbose = 1)
         # self.tnsorboard = tf.keras.callbacks.TensorBoard(
         #                                                 log_dir = 'logs', histogram_freq = 0, write_graph = True,
-        #                                                 write_images = False, write_steps_per_second = False, update_freq = 'epoch')
-                                                    
+        #                                                 write_images = False, write_steps_per_second = False, update_freq = 'epoch')                   
     
     def launch_training(self) -> None:
         

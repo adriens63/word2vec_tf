@@ -1,4 +1,4 @@
-N_ELEMNT = 10000
+N_ELEMNT = 400000
 
 CBOW_N_WORDS = 3
 SKIPGRAM_N_WORDS = 3 # context = 3 words before, 3 words after the target word
@@ -14,3 +14,5 @@ BATCH_SIZE = 64
 LANGUAGE = 'french'
 
 BUFFER_SIZE = 8192
+
+MEMORY_GPU = 3072
